@@ -3,7 +3,16 @@
 	Quaternion and vector datatypes and functions
     by Phillip Schmidt
     Dec 2013
-    v0.1.0
+    v0.1.0 - beta
+	
+	quaternion = w, x, y, z (double)
+	vector3 = x, y, z (double)
+	
+	
+	(matrix3 = 3x3 matrix - implement later... maybe...)
+	(matrix4 = 4x4 matrix - implement later... maybe...)
+	
+	
 */
  
 #ifndef MATH3D_h
@@ -149,13 +158,11 @@ inline vector3 vector3::operator=(const quaternion& b)
 
 inline quaternion operator*(const quaternion& a, const vector3& b) // multiply: quat * vec3
 {
-	//quaternion a = *this;
 	return a * v2q(b);
 }
 
 inline quaternion operator*(const vector3& a, const quaternion& b) // multiply: vec3 * quat
 {
-	//quaternion a = *this;
 	return v2q(a) * b;
 }
 
@@ -234,4 +241,5 @@ inline vector3 vector3::operator*(const vector3& c) const // cross product of 3d
 			  b.x * c.y - b.y * c.x);
     return a;
 }
+
 #endif 
