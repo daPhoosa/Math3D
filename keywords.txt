@@ -6,8 +6,9 @@
 # Datatypes (KEYWORD1)
 #######################################
 
+Math3D		KEYWORD1
 quaternion	KEYWORD1
-vec3		KEYWORD1
+vector3		KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)

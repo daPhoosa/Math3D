@@ -242,4 +242,33 @@ inline vector3 vector3::operator*(const vector3& c) const // cross product of 3d
     return a;
 }
 
+quaternion incQuat(const vector3& w, const unsigned long& t){  // (angular vel vec[rad/s], time interval[us])
+	double _t = double(t) * 0.0000005; // time in seconds & divided in half for theta/2 computations
+
+	quaternion a;
+	a.w = 1.0 - 0.5*(w.x * w.x + w.y * w.y + w.z * w.z)*_t*_t;
+	a.x = w.x * _t;
+ 	a.y = w.y * _t;
+	a.z = w.z * _t;
+	
+	return a;
+}
+
+vector3 grav2sc(const quaternion& a){ // translate 0,0,1 into SC frame
+	vector3 c;
+	//c.w = 0;  // reduced form of Q Vg Q*
+	c.x = 2.0 * a.y * a.w + 2.0 * a.z * a.x;
+	c.y = 2.0 * a.z * a.y - 2.0 * a.x * a.w;
+	c.z = a.z * a.z - a.y * a.y - a.x * a.x + a.w * a.w;
+	return(c);
+}
+
+double mag(const quaternion& a){
+	return sqrt(a.w*a.w + a.x*a.x + a.y*a.y + a.z*a.z);
+}
+
+double mag(const vector3& a){
+	return sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+}
+
 #endif 
