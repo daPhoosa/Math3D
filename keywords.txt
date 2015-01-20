@@ -7,8 +7,8 @@
 #######################################
 
 Math3D		KEYWORD1
-quaternion	KEYWORD1
-vector3		KEYWORD1
+Quat		KEYWORD1
+Vec3		KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)

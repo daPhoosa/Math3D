@@ -2,16 +2,46 @@
     3D Math Library for the Arduino Platform
 	Quaternion and vector datatypes and functions
     by Phillip Schmidt
-    Dec 2013
-    v0.1.0 - beta
-	
-	quaternion = w, x, y, z (double)
-	vector3 = x, y, z (double)
+    July 2014, December 2014
+    v2.0.0
 	
 	
-	(matrix3 = 3x3 matrix - implement later... maybe...)
-	(matrix4 = 4x4 matrix - implement later... maybe...)
-	
+	STRUCTURES
+		Vec3 - 	x, y, z
+		Quat - 	x, y, z, w			(i, j, k, real)
+		M3x3 -	a11, a12, a13
+				a21, a22, a23
+				a31, a32, a33
+		
+		
+	BASIC OPERATIONS
+		Quat QuatMultiply(Quat, Quat)			// combine rotations encoded in quaternion form
+		Quat QuatMultiply(Quat, Vec3) 		//	used during vector translation
+		Quat QuatConj(Quat)						// represents a rotation opposite of the original
+		Quat Vector2Quat(Vec3)					// convert a 3D vector to a quaternion (add component w=0)
+		Quat QuatScale(Quat, float)			// multiply a quaternion be a scaler
+		
+		Vec3 Quat2Vector(Quat)					// convert a quaternion to a 3D vector (truncate w component)
+		Vec3 VecScale(Vec3, float)				// multiply a 3D vector by a scaler
+		Vec3 VecAdd(Vec3, Vec3) 				// sum the components of two 3D vectors
+		Vec3 VecDiff(Vec3, Vec3) 				// subtract the components of two vectors
+		Vec3 VecCross(Vec3, Vec3) 			// cross product of two vectors
+
+		
+	COMPOUND OPERATIONS
+		float InvSqrt (float)						// fast inverse square root using
+		float Magnitude(Quat)						// quaternion magnitude
+		float Magnitude(Vec3)						// 3D vector magnitude
+		Vec3 Normalize(Vec3)					// 3D vector normalize
+		Quat Normalize(Quat)						// quaternion normalize
+		
+		
+	SPECIAL FUNCTIONS
+		Vec3 Vec2Vehicle(Quat, Vec3)		// translate a 3D vector from the inertial frame to the vehicle frame
+		Vec3 Vec2Inertial(Quat, Vec3)		// translate a 3D vector from the vehicle frame to the inertial frame
+		Quat QuatIntegrate(Quat, Vec3, unsigned long)	// use the current orientation quaternion, 3D rotation rate vector, and time interval to compute the current orientation
+		Vec3 AccelComp(Quat, Vec3)			// compute a 3D vector that describes the rotation required to correct the discrepancy between estimated vertical and the gravitational vertical
+		Vec3 MagComp(Quat, Vec3)			// compute a 3D vector that describes the rotation required to correct the discrepancy between estimated north and the magnetic north
 	
 */
  
@@ -21,34 +51,81 @@
 #include "Arduino.h"
  
  
-class quaternion
+ 
+// =========================
+// 			CLASSES
+// =========================
+
+class Quat
 {
 	public:
-    double w, x, y, z;	
+    float w, x, y, z;	
 	
-	quaternion();
-	quaternion(double, double, double, double);
+	Quat();
+	Quat(float, float, float, float);
 	
-	//~quaternion();
+	//~Quat();
 	
-	quaternion& operator+=(const quaternion&);
-	quaternion& operator+(const quaternion&) const;
-	quaternion operator*(const quaternion&) const;
+	Quat& operator+=(const Quat&);
+	Quat& operator+(const Quat&) const;
+	Quat operator*(const Quat&) const;
 	
-	friend quaternion operator*(quaternion);
+	friend Quat operator*(Quat);
 
+};
+
+class M3x3	// Matrix 3x3
+{
+	public:
+    float a11, a12, a13;	
+	float a21, a22, a23;
+	float a31, a32, a33;
+	
+	M3x3();
+	
+	//~Vec3();
+	
+	M3x3& operator+=(const M3x3&);
+	M3x3& operator+(const M3x3&) const;
+	M3x3  operator*(const M3x3&) const;
+	
+	friend M3x3 operator*(M3x3);		// for 
 	
 };
 
-quaternion::quaternion()
+class Vec3
 {
-	w = 1.0;
-	x = 0.0;
-	y = 0.0;
-	z = 0.0;
-}
+	public:
+    float x, y, z;	
+	
+	Vec3();
+	Vec3(float, float, float);
+	
+	
+	//~Vec3();
+	
+	Vec3& operator+=(const Vec3&);
+	Vec3& operator+(const Vec3&) const;
+	Vec3& operator-=(const Vec3&);
+	Vec3& operator-(const Vec3&) const;
+	Vec3 operator*(const Vec3&) const;
+	
+	Vec3 operator=(const Quat&);
+	friend Vec3 operator*(Vec3);
+	
+};
 
-quaternion::quaternion(double a, double b, double c, double d)
+
+
+
+
+
+
+// =========================
+// 			CONSTRUCTORS 
+// =========================
+
+Quat::Quat(float a, float b, float c, float d)
 {
 	w = a;
 	x = b;
@@ -56,117 +133,70 @@ quaternion::quaternion(double a, double b, double c, double d)
 	z = d;
 }
 
-class vector3
+Quat::Quat()
 {
-	public:
-    double x, y, z;	
-	
-	vector3();
-	vector3(double, double, double);
-	
-	//~vector3();
-	
-	vector3& operator+=(const vector3&);
-	vector3& operator+(const vector3&) const;
-	vector3& operator-=(const vector3&);
-	vector3& operator-(const vector3&) const;
-	vector3 operator*(const vector3&) const;
-	
-	vector3 operator=(const quaternion&);
-	friend vector3 operator*(vector3);
-	
-};
+	w = 1.0f;
+	x = 0.0f;
+	y = 0.0f;
+	z = 0.0f;
+}
 
-vector3::vector3(double a, double b, double c)
+M3x3::M3x3(	const float& a, const float& b, const float& c, 
+			const float& d, const float& e, const float& f, 
+			const float& g, const float& h, const float& i)
+{
+	a11 = a; a12 = b; a13 = c;
+	a21 = d; a22 = e; a23 =	f;
+	a31 = g; a32 = h; a33 = i;
+}
+
+M3x3::M3x3()
+{
+	a11 = a22 = a33 = 1.0f;
+	a12 = a13 = a21 = a23 =	a31 = a32 = 0.0f;
+}
+
+Vec3::Vec3(float a, float b, float c)
 {
 	x = a;
 	y = b;
 	z = c;
 }
 
-vector3::vector3()
+Vec3::Vec3()
 {
-	x = 0;
-	y = 0;
-	z = 0;
+	x = 0.0f;
+	y = 0.0f;
+	z = 0.0f;
 }
 
-inline quaternion & quaternion::operator+=(const quaternion& b)
-{
-	quaternion& a = *this;
-	a.w += b.w;
-	a.x += b.x;
-	a.y += b.y;
-	a.z += b.z;
-	return *this;
-}
 
-inline quaternion & quaternion::operator+(const quaternion& b) const
+// =========================
+// 		BASIC OPERATIONS 
+// =========================
+
+inline Quat Quat::operator*(const Quat& rhs) const // multiply: Quat * Quat --16 mult, 6 add, 6 sub  (266us)
 {
-	quaternion a = *this;
-	a += b;
+	Quat lhs = *this;	// 
+	Quat a;
+	a.x = lhs.w * rhs.x + lhs.z * rhs.y - lhs.y * rhs.z + lhs.x * rhs.w;  
+	a.y = lhs.w * rhs.y + lhs.x * rhs.z + lhs.y * rhs.w - lhs.z * rhs.x;
+	a.z = lhs.y * rhs.x - lhs.x * rhs.y + lhs.w * rhs.z + lhs.z * rhs.w;
+	a.w = lhs.w * rhs.w - lhs.x * rhs.x - lhs.y * rhs.y - lhs.z * rhs.z;
 	return a;
 }
 
-inline quaternion quaternion::operator*(const quaternion& b) const // multiply: quat * quat
+inline Quat operator*(const Quat& lhs, const Vec3& rhs)
 {
-	quaternion a = *this;
-	quaternion c;
-	c.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;  // 16 mult, 6 add, 6 sub
-	c.x = a.x * b.w + a.w * b.x + a.y * b.z - a.z * b.y;
-	c.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
-	c.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
-	return c;
-}
-
-inline quaternion qConj(quaternion a)
-{
-	a.w = a.w;
-	a.x = -a.x;
-	a.y = -a.y;
-	a.z = -a.z;
+	Quat a;
+	a.x =  lhs.w * rhs.x + lhs.z * rhs.y - lhs.y * rhs.z;  
+	a.y =  lhs.w * rhs.y + lhs.x * rhs.z - lhs.z * rhs.x;
+	a.z =  lhs.y * rhs.x - lhs.x * rhs.y + lhs.w * rhs.z;
+	a.w = -lhs.x * rhs.x - lhs.y * rhs.y - lhs.z * rhs.z;
 	return a;
 }
 
-inline quaternion v2q(const vector3& a)
-{
-    quaternion b;
-    b.w = 0.0;
-    b.x = a.x;
-    b.y = a.y;
-    b.z = a.z;
-    return(b);
-}
-
-inline vector3 q2v(const quaternion& a)
-{
-	vector3 b;
-    b.x = a.x;
-    b.y = a.y;
-    b.z = a.z;
-    return(b);
-}
-
-inline vector3 vector3::operator=(const quaternion& b)
-{
-	vector3& a = *this;
-	a.x = b.x;
-	a.y = b.y;
-	a.z = b.z;
-	return *this;
-}
-
-inline quaternion operator*(const quaternion& a, const vector3& b) // multiply: quat * vec3
-{
-	return a * v2q(b);
-}
-
-inline quaternion operator*(const vector3& a, const quaternion& b) // multiply: vec3 * quat
-{
-	return v2q(a) * b;
-}
-
-inline quaternion operator*=(quaternion& a, double b) // multiply: quat * double
+inline Quat operator*=(Quat& a, float b) // multiply: quat * float
 {
 	a.w *= b;
 	a.x *= b;
@@ -175,47 +205,65 @@ inline quaternion operator*=(quaternion& a, double b) // multiply: quat * double
 	return a;
 }
 
-inline quaternion operator*(quaternion a, double b) // multiply: quat * double
+inline Quat operator*(Quat a, float b) // multiply: quat * float
 {
 	return a *= b;
 }
 
-inline quaternion operator*(double b, quaternion a) // multiply: double * quat
+inline Quat operator*(float b, Quat a) // multiply: float * quat
 {
 	return a *= b;
 }
 
-inline vector3 & vector3::operator+=(const vector3& b)
+inline Quat & Quat::operator+=(const Quat& b)
 {
-	vector3& a = *this;
+	Quat& a = *this;
+	a.w += b.w;
 	a.x += b.x;
 	a.y += b.y;
 	a.z += b.z;
 	return *this;
 }
 
-inline vector3 & vector3::operator+(const vector3& b) const
+inline Quat & Quat::operator+(const Quat& b) const
 {
-	vector3 a = *this;
+	Quat a = *this;
+	a += b;
+	return a;
+}
+
+
+inline Vec3 & Vec3::operator+=(const Vec3& b)
+{
+	Vec3& a = *this;
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return *this;
+}
+
+inline Vec3 & Vec3::operator+(const Vec3& b) const
+{
+	Vec3 a = *this;
 	return a += b;
 }
 
-inline vector3 & vector3::operator-=(const vector3& b)
+inline Vec3 & Vec3::operator-=(const Vec3& b)
 {
-	vector3& a = *this;
+	Vec3& a = *this;
 	a.x -= b.x;
 	a.y -= b.y;
 	a.z -= b.z;
 	return *this;
 }
 
-inline vector3 & vector3::operator-(const vector3& b) const
+inline Vec3 & Vec3::operator-(const Vec3& b) const
 {
-	vector3 a = *this;
+	Vec3 a = *this;
 	return a -= b;
 }
 
-inline vector3 operator*=(vector3& a, double b) // multiply: vec3 * double
+inline Vec3 operator*=(Vec3& a, const float& b) // multiply: vec3 * float
 {
 	a.x *= b;
 	a.y *= b;
@@ -223,52 +271,268 @@ inline vector3 operator*=(vector3& a, double b) // multiply: vec3 * double
 	return a;
 }
 
-inline vector3 operator*(vector3 a, double b) // multiply: vec3 * double
+inline Vec3 operator*(Vec3 a, const float& b) // multiply: vec3 * float
 {
 	return a *= b;
 }
 
-inline vector3 operator*(double b, vector3 a) // multiply: double * vec3
+inline Vec3 operator*(const float& b, Vec3 a) // multiply: float * vec3
 {
 	return a *= b;
 }
 
-inline vector3 vector3::operator*(const vector3& c) const // cross product of 3d vectors
+
+inline Vec3 Vec3::operator*(const Vec3& R) const // cross product of 3d vectors
 { 
-    vector3 b = *this;
-	vector3 a(b.y * c.z - b.z * c.y,
-			  b.z * c.x - b.x * c.z,
-			  b.x * c.y - b.y * c.x);
+    Vec3 L = *this;
+	Vec3 a(	L.y * R.z - L.z * R.y,
+			L.z * R.x - L.x * R.z,
+			L.x * R.y - L.y * R.x);
     return a;
 }
 
-quaternion incQuat(const vector3& w, const unsigned long& t){  // (angular vel vec[rad/s], time interval[us])
-	double _t = double(t) * 0.0000005; // time in seconds & divided in half for theta/2 computations
+inline Vec3 Vector(const float& x, const float& y, const float& z)
+{
+	Vec3 v(x, y, z);
+	return v;
+}
 
-	quaternion a;
-	a.w = 1.0 - 0.5*(w.x * w.x + w.y * w.y + w.z * w.z)*_t*_t;
-	a.x = w.x * _t;
- 	a.y = w.y * _t;
-	a.z = w.z * _t;
-	
+inline Quat conj(Quat a)
+{
+	//a.w = a.w;
+	a.x = -a.x;
+	a.y = -a.y;
+	a.z = -a.z;
 	return a;
 }
 
-vector3 grav2sc(const quaternion& a){ // translate 0,0,1 into SC frame
-	vector3 c;
-	//c.w = 0;  // reduced form of Q Vg Q*
-	c.x = 2.0 * a.y * a.w + 2.0 * a.z * a.x;
-	c.y = 2.0 * a.z * a.y - 2.0 * a.x * a.w;
-	c.z = a.z * a.z - a.y * a.y - a.x * a.x + a.w * a.w;
-	return(c);
+inline Quat Vector2Quat(const Vec3& a)	// Vec3 to Quat
+{
+    Quat b;
+    b.w = 0.0f;
+    b.x = a.x;
+    b.y = a.y;
+    b.z = a.z;
+    return(b);
 }
 
-double mag(const quaternion& a){
+inline Vec3 Quat2Vector(const Quat& a)	// Quat to Vec3
+{
+	Vec3 b;
+    b.x = a.x;
+    b.y = a.y;
+    b.z = a.z;
+    return(b);
+}
+
+
+// =========================
+//		COMPOUND OPERATIONS
+// =========================
+
+inline float InvSqrt (float x)	// the "Quake" inverse square root -- 
+{ 
+	union{  
+		int32_t i;  
+		float    f; 
+	} conv; 
+	conv.f = x; 
+	conv.i = 0x5f3759df - (conv.i >> 1); 
+	return 0.5f * conv.f * (3.0f - x * conv.f * conv.f); //
+}
+
+inline float Magnitude(const Quat& a)
+{
 	return sqrt(a.w*a.w + a.x*a.x + a.y*a.y + a.z*a.z);
 }
 
-double mag(const vector3& a){
+inline float Magnitude(const Vec3& a)
+{
 	return sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+}
+
+inline Vec3 Normalize(const Vec3& a)
+{
+	return a * InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z);
+}
+
+inline Quat Normalize(const Quat& a)
+{
+	return a * InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w);
+}
+
+
+
+// =========================
+//		SPECIAL FUNCTIONS 
+// =========================
+
+inline Vec3 Rotate(const M3x3& L, const Vec3& R) // vector rotated by matrix (V^ = Matrix * V -- 148us)
+{ 
+	Vec3 a(	L.a11 * R.x + L.a12 * R.y + L.a13 * R.z,
+			L.a21 * R.x + L.a22 * R.y + L.a23 * R.z,
+			L.a31 * R.x + L.a32 * R.y + L.a33 * R.z);
+    return a;
+}
+
+inline Vec3 Rotate(const Vec3& L, const M3x3& R) // vector rotated by matrix (V^ = V * Matrix -- 148us)
+{ 
+	Vec3 a(	R.a11 * L.x + R.a21 * L.y + R.a31 * L.z,
+			R.a12 * L.x + R.a22 * L.y + R.a32 * L.z,
+			R.a13 * L.x + R.a23 * L.y + R.a33 * L.z);
+    return a;
+}
+
+inline Vec3 Rotate(const Vec3& v, const Quat& q)	// Vector rotated by a Quaternion (matches V^ = V * Matrix)
+{	
+	Vec3 r(-q.x, -q.y, -q.z);								// v + 2*r X (r X V + q.w*v)
+	return v + (r + r) * (r * v + v * q.w);					// 15mult + 12add -- 268us
+	
+	//v = Quat2Vector((q * v) * conj(q));					// 460us
+	//return v;
+}
+
+inline Vec3 Rotate(const Quat& q, const Vec3& v)	// Vector rotated by a Quaternion (matches V^ = Matrix * V)
+{	
+	Vec3 r(q.x, q.y, q.z);								// v + 2*r X (r X V + q.w*v)
+	return v + ((r + r) * ((r * v) + (v * q.w)));				// 15mult + 12add -- 268us
+	
+	//v = Quat2Vector((conj(q) * v) * q);					// 460us
+	//return v;
+}
+
+
+inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel vector[rad/s], time interval[us])
+{  
+	float dT_2 = float(t) * 0.0000005f; // time in seconds & divided in half for theta/2 computations
+	Quat a;
+	a.x = w.x * dT_2;
+ 	a.y = w.y * dT_2;
+	a.z = w.z * dT_2;
+	a.w = 1.0 - 0.5 * (a.x * a.x + a.y * a.y + a.z * a.z);
+	return a;	// time = 116us + mult = 362us		(REF: RotMatrix = 588us)
+}
+
+
+inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Quaternion
+{  
+	
+	float vMag = Magnitude(w);
+	float theta_2 = vMag * 0.5f;	// rotation angle divided by 2
+	float Sin_Mag = sin(theta_2) / vMag;			// computation minimization
+	
+	Quat a;
+	a.x = w.x * Sin_Mag;
+ 	a.y = w.y * Sin_Mag;
+	a.z = w.z * Sin_Mag;
+	a.w = cos(theta_2);
+	return a;		// time = 390us + mult  = 636
+}
+
+inline void Quat2Matrix(const Quat& q, M3x3& m)
+{
+
+	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us)
+	float ww  = q.w * q.w;
+	float xx  = q.x * q.x;
+	float yy  = q.y * q.y;
+	float zz  = q.z * q.z;
+
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x;
+	float wy2 =  w2 * q.y;
+	float wz2 =  w2 * q.z;
+
+	float x2  = q.x + q.x;
+	float xy2 =  x2 * q.y;
+	float xz2 =  x2 * q.z;
+
+	float yz2 = (q.y + q.y) * q.z;
+
+	// Diagonal
+	m.a11 = ww + xx - yy - zz;
+	m.a22 = ww - xx + yy - zz;
+	m.a33 = ww - xx - yy + zz;
+
+	// Lower Left
+	m.a21 = xy2 + wz2;
+	m.a31 = xz2 - wy2;
+	m.a32 = yz2 + wx2;
+
+	// Upper Right
+	m.a12 = xy2 - wz2;
+	m.a13 = xz2 + wy2;
+	m.a23 = yz2 - wx2;
+
+}
+
+
+// =========================
+// 		DISPLAY FUNCTIONS 
+// =========================
+
+void display(const Vec3& v)
+{
+	Serial.print("X: ");
+	Serial.print(v.x, 3);
+	Serial.print("   ");
+	
+	Serial.print("Y: ");
+	Serial.print(v.y, 3);
+	Serial.print("   ");
+	
+	Serial.print("Z: ");
+	Serial.println(v.z, 3);
+
+}
+
+void display(const Quat& q)
+{
+	Serial.print("W: ");
+	Serial.print(q.w, 3);
+	Serial.print("   ");
+	
+	Serial.print("X: ");
+	Serial.print(q.x, 3);
+	Serial.print("   ");
+	
+	Serial.print("Y: ");
+	Serial.print(q.y, 3);
+	Serial.print("   ");
+	
+	Serial.print("Z: ");
+	Serial.println(q.z, 3);
+
+}
+
+void display(const M3x3& m)
+{
+	Serial.print("   ");
+	Serial.print(m.a11, 3);
+	Serial.print("   ");
+	
+	Serial.print(m.a12, 3);
+	Serial.print("   ");
+	
+	Serial.println(m.a13, 3);
+	
+	Serial.print("   ");
+	Serial.print(m.a21, 3);
+	Serial.print("   ");
+	
+	Serial.print(m.a22, 3);
+	Serial.print("   ");
+	
+	Serial.println(m.a23, 3);
+
+	Serial.print("   ");
+	Serial.print(m.a31, 3);
+	Serial.print("   ");
+	
+	Serial.print(m.a32, 3);
+	Serial.print("   ");
+	
+	Serial.println(m.a33, 3);	
 }
 
 #endif 
