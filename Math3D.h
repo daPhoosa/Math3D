@@ -404,12 +404,14 @@ inline Vec3 Rotate(const Quat& q, const Vec3& v)	// Vector rotated by a Quaterni
 
 inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel vector[rad/s], time interval[us])
 {  
-	float dT_2 = float(t) * 0.0000005f; // time in seconds & divided in half for theta/2 computations
-	Quat a;
-	a.x = w.x * dT_2;
- 	a.y = w.y * dT_2;
-	a.z = w.z * dT_2;
-	a.w = 1.0 - 0.5 * (a.x * a.x + a.y * a.y + a.z * a.z);
+	float static dT_2;
+	Quat  static a;
+	
+	dT_2 = float(t) * 0.0000005f; // time in seconds & divided in half for theta/2 computations
+	a.x  = w.x * dT_2;
+ 	a.y  = w.y * dT_2;
+	a.z  = w.z * dT_2;
+	a.w  = 1.0f - 0.5f * (a.x * a.x + a.y * a.y + a.z * a.z);
 	return a;	// time = 116us + mult = 362us		(REF: RotMatrix = 588us)
 }
 
