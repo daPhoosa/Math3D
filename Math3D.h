@@ -431,23 +431,26 @@ inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Qu
 
 inline void Quat2Matrix(const Quat& q, M3x3& m)
 {
-
+	float static ww, xx,  yy,  zz;
+	float static w2, wx2, wy2, wz2;
+	float static x2, xy2, xz2, yz2;
+	
 	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us)
-	float ww  = q.w * q.w;
-	float xx  = q.x * q.x;
-	float yy  = q.y * q.y;
-	float zz  = q.z * q.z;
+	ww  = q.w * q.w;
+	xx  = q.x * q.x;
+	yy  = q.y * q.y;
+	zz  = q.z * q.z;
 
-	float w2  = q.w + q.w;
-	float wx2 =  w2 * q.x;
-	float wy2 =  w2 * q.y;
-	float wz2 =  w2 * q.z;
+	w2  = q.w + q.w;
+	wx2 =  w2 * q.x;
+	wy2 =  w2 * q.y;
+	wz2 =  w2 * q.z;
 
-	float x2  = q.x + q.x;
-	float xy2 =  x2 * q.y;
-	float xz2 =  x2 * q.z;
+	x2  = q.x + q.x;
+	xy2 =  x2 * q.y;
+	xz2 =  x2 * q.z;
 
-	float yz2 = (q.y + q.y) * q.z;
+	yz2 = (q.y + q.y) * q.z;
 
 	// Diagonal
 	m.a11 = ww + xx - yy - zz;
