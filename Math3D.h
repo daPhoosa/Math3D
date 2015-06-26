@@ -1,48 +1,74 @@
 /*
-    3D Math Library for the Arduino Platform
-	Quaternion and vector datatypes and functions
-    by Phillip Schmidt
-    July 2014, December 2014
-    v2.0.0
+	3D Math Library for the Arduino Platform
+	Quaternion, Vector and Rotation Matrix datatypes and functions
+	by Phillip Schmidt
+	July 2014, December 2014, June2015
+	v3.0.0
 	
 	
-	STRUCTURES
-		Vec3 - 	x, y, z
-		Quat - 	x, y, z, w			(i, j, k, real)
-		M3x3 -	a11, a12, a13
-				a21, a22, a23
-				a31, a32, a33
+// =========================
+//		STRUCTURES
+// =========================
+		Vec3	x, y, z
+		Quat	x, y, z, w			(i, j, k, real)
+		M3x3	| a11, a12, a13 |
+				| a21, a22, a23 |
+				| a31, a32, a33 |
 		
 		
-	BASIC OPERATIONS
-		Quat QuatMultiply(Quat, Quat)			// combine rotations encoded in quaternion form
-		Quat QuatMultiply(Quat, Vec3) 		//	used during vector translation
-		Quat QuatConj(Quat)						// represents a rotation opposite of the original
-		Quat Vector2Quat(Vec3)					// convert a 3D vector to a quaternion (add component w=0)
-		Quat QuatScale(Quat, float)			// multiply a quaternion be a scaler
-		
-		Vec3 Quat2Vector(Quat)					// convert a quaternion to a 3D vector (truncate w component)
-		Vec3 VecScale(Vec3, float)				// multiply a 3D vector by a scaler
-		Vec3 VecAdd(Vec3, Vec3) 				// sum the components of two 3D vectors
-		Vec3 VecDiff(Vec3, Vec3) 				// subtract the components of two vectors
-		Vec3 VecCross(Vec3, Vec3) 			// cross product of two vectors
+// =========================
+//		BASIC OPERATIONS 
+// =========================
+		Quat Mul( Quat, Quat )		// multiply: Quat * Quat --16 mult, 6 add, 6 sub  (266us)
+		Quat Mul( Quat, Vec3 )		// multiply: Quat * [0,vec3] --12mult, 3 add, 6 sub
+		Q3x3 Mul( Q3x3, Q3x3 )  	// multiply: Q3x3 * Q3x3
+		Quat Mul( Quat, float )		// multiply: Quat * float
+		Quat Mul( float, Quat )		// multiply: float * Quat
+		Vec3 Mul( Vec3, float )		// multiply: Vec3 * float
+		Vec3 Mul( float, Vec3 )		// multiply: float * Vec3
+		Quat Sum( Quat, Quat )		// add two quaternions	
+		Vec3 Sum( Vec3, Vec3 )		// add two vectors
+		Vec3 Sub( Vec3, Vec3 )		// subtract two vectors
+		Vec3 CrossProd( Vec3, Vec3 )	// cross product of 3D vectors
+		float DotProd( Quat, Quat )	// dot product of quaternions
+		float DotProd( Vec3, Vec3 )	// dot product of 3D vectors
+		Vec3 Vector( float, float, float) // 3x float to vector (x, y, z)
+		Quat Conj( Quat )				// conjugate quaternion (-x, -y, -z, w)
+		Quat Vector2Quat( Vec3 )	// [0,Vec3] to Quat
+		Vec3 Quat2Vector( Quat )	// Quat to Vec3
 
 		
-	COMPOUND OPERATIONS
-		float InvSqrt (float)						// fast inverse square root using
-		float Magnitude(Quat)						// quaternion magnitude
-		float Magnitude(Vec3)						// 3D vector magnitude
-		Vec3 Normalize(Vec3)					// 3D vector normalize
-		Quat Normalize(Quat)						// quaternion normalize
+// =========================
+//		COMPOUND OPERATIONS
+// =========================
+		float InvSqrt( float )		// returns inverse square root of a float (borrowed from MultiWii v2.4)
+		float Magnitude( Quat )		// return magnitude of a quaternion
+		float Magnitude( Vec3 )		// return magnitude of a vector
+		Vec3 Normalize( Vec3 )		// return normalized vector
+		Quat Normalize( Quat )  	// return normalized quaternion
+
 		
+// =========================
+//		SPECIAL FUNCTIONS 
+// =========================
+		Vec3 Rotate( M3x3, Vec3 )			// vector rotated by matrix (V^ = Matrix * V -- 148us)
+		Vec3 Rotate( Vec3, M3x3 )			// vector rotated by matrix (V^ = V * Matrix -- 148us)
+		Vec3 Rotate( Vec3, Quat )			// Vector rotated by a Quaternion (matches V^ = V * Matrix)
+		Vec3 Rotate( Quat, Vec3 )			// Vector rotated by a Quaternion (matches V^ = Matrix * V)
+		Quat Quaternion( Vec3, unsigned long )	// (angular vel vector[rad/s], time interval[us]) -- Small angle approximation
+		Quat Quaternion( Vec3 )				// (angle vector[rad])	--Large Rotation Quaternion
+		void Quat2Matrix( Quat, M3x3 )	// Quaternion ==> Matrix
+
 		
-	SPECIAL FUNCTIONS
-		Vec3 Vec2Vehicle(Quat, Vec3)		// translate a 3D vector from the inertial frame to the vehicle frame
-		Vec3 Vec2Inertial(Quat, Vec3)		// translate a 3D vector from the vehicle frame to the inertial frame
-		Quat QuatIntegrate(Quat, Vec3, unsigned long)	// use the current orientation quaternion, 3D rotation rate vector, and time interval to compute the current orientation
-		Vec3 AccelComp(Quat, Vec3)			// compute a 3D vector that describes the rotation required to correct the discrepancy between estimated vertical and the gravitational vertical
-		Vec3 MagComp(Quat, Vec3)			// compute a 3D vector that describes the rotation required to correct the discrepancy between estimated north and the magnetic north
-	
+// =========================
+//		DISPLAY FUNCTIONS 
+// =========================
+		void display(Vec3)		// "X: 0.0000   Y: 0.0000   Z: 0.0000"
+		void display(Quat)		// "X: 0.0000   Y: 0.0000   Z: 0.0000   W: 1.0000"
+		void display(M3x3)		// "   1.000   0.000   0.000"
+										// "   0.000   1.000   0.000"
+										// "   0.000   0.000   1.000"
+
 */
  
 #ifndef MATH3D_h
@@ -53,131 +79,40 @@
  
  
 // =========================
-// 			CLASSES
+// 			STRUCTURES
 // =========================
 
-class Quat
+struct Quat
 {
-	public:
-    float w, x, y, z;	
-	
-	Quat();
-	Quat(float, float, float, float);
-	
-	//~Quat();
-	
-	Quat& operator+=(const Quat&);
-	Quat& operator+(const Quat&) const;
-	Quat operator*(const Quat&) const;
-	
-	friend Quat operator*(Quat);
-
+	float w = 1.0f;
+	float x = 0.0f;
+	float y = 0.0f;
+	float z = 0.0f;	
 };
 
-class M3x3	// Matrix 3x3
+struct Vec3
 {
-	public:
-    float a11, a12, a13;	
-	float a21, a22, a23;
-	float a31, a32, a33;
-	
-	M3x3();
-	
-	//~Vec3();
-	
-	M3x3& operator+=(const M3x3&);
-	M3x3& operator+(const M3x3&) const;
-	M3x3  operator*(const M3x3&) const;
-	
-	friend M3x3 operator*(M3x3);		// for 
-	
+	float x = 0.0f;
+	float y = 0.0f;
+	float z = 0.0f;
 };
 
-class Vec3
+struct M3x3	// Matrix 3x3
 {
-	public:
-    float x, y, z;	
-	
-	Vec3();
-	Vec3(float, float, float);
-	
-	
-	//~Vec3();
-	
-	Vec3& operator+=(const Vec3&);
-	Vec3& operator+(const Vec3&) const;
-	Vec3& operator-=(const Vec3&);
-	Vec3& operator-(const Vec3&) const;
-	Vec3 operator*(const Vec3&) const;
-	
-	Vec3 operator=(const Quat&);
-	friend Vec3 operator*(Vec3);
-	
+	float a11 = 1.0f; float a12 = 0.0f; float a13 = 0.0f;	
+	float a21 = 0.0f; float a22 = 1.0f; float a23 = 0.0f;
+	float a31 = 0.0f; float a32 = 0.0f; float a33 = 1.0f;
 };
 
 
-
-
-
-
-
-// =========================
-// 			CONSTRUCTORS 
-// =========================
-
-Quat::Quat(float a, float b, float c, float d)
-{
-	w = a;
-	x = b;
-	y = c;
-	z = d;
-}
-
-Quat::Quat()
-{
-	w = 1.0f;
-	x = 0.0f;
-	y = 0.0f;
-	z = 0.0f;
-}
-
-M3x3::M3x3(	const float& a, const float& b, const float& c, 
-			const float& d, const float& e, const float& f, 
-			const float& g, const float& h, const float& i)
-{
-	a11 = a; a12 = b; a13 = c;
-	a21 = d; a22 = e; a23 =	f;
-	a31 = g; a32 = h; a33 = i;
-}
-
-M3x3::M3x3()
-{
-	a11 = a22 = a33 = 1.0f;
-	a12 = a13 = a21 = a23 =	a31 = a32 = 0.0f;
-}
-
-Vec3::Vec3(float a, float b, float c)
-{
-	x = a;
-	y = b;
-	z = c;
-}
-
-Vec3::Vec3()
-{
-	x = 0.0f;
-	y = 0.0f;
-	z = 0.0f;
-}
 
 
 // =========================
 // 		BASIC OPERATIONS 
 // =========================
 
-inline Quat Quat::operator*(const Quat& rhs) const // multiply: Quat * Quat --16 mult, 6 add, 6 sub  (266us)
+inline Quat Mul(const Quat& lhs, const Quat& rhs)  // multiply: Quat * Quat --16 mult, 6 add, 6 sub  (266us)
 {
-	Quat lhs = *this;	// 
 	Quat a;
 	a.x = lhs.w * rhs.x + lhs.z * rhs.y - lhs.y * rhs.z + lhs.x * rhs.w;  
 	a.y = lhs.w * rhs.y + lhs.x * rhs.z + lhs.y * rhs.w - lhs.z * rhs.x;
@@ -186,7 +121,7 @@ inline Quat Quat::operator*(const Quat& rhs) const // multiply: Quat * Quat --16
 	return a;
 }
 
-inline Quat operator*(const Quat& lhs, const Vec3& rhs)
+inline Quat Mul(const Quat& lhs, const Vec3& rhs)  // multiply: Quat * [0,vec3] --12mult, 3 add, 6 sub
 {
 	Quat a;
 	a.x =  lhs.w * rhs.x + lhs.z * rhs.y - lhs.y * rhs.z;  
@@ -196,7 +131,29 @@ inline Quat operator*(const Quat& lhs, const Vec3& rhs)
 	return a;
 }
 
-inline Quat operator*=(Quat& a, float b) // multiply: quat * float
+inline Q3x3 Mul(const Q3x3& l, const Q3x3& r)  // multiply: Q3x3 * Q3x3 --27mult, 18 add
+{
+	Q3x3 a;
+	
+	// *** ROW 1 ***
+	a.a11 =  l.a11 * r.a11 + l.a12 * r.a21 + l.a13 * r.a31;  
+	a.a12 =  l.a11 * r.a12 + l.a12 * r.a22 + l.a13 * r.a32;
+	a.a13 =  l.a11 * r.a13 + l.a12 * r.a23 + l.a13 * r.a33;
+	
+	// *** ROW 2 ***
+	a.a21 =  l.a21 * r.a11 + l.a22 * r.a21 + l.a23 * r.a31;  
+	a.a22 =  l.a21 * r.a12 + l.a22 * r.a22 + l.a23 * r.a32;
+	a.a23 =  l.a21 * r.a13 + l.a22 * r.a23 + l.a23 * r.a33;	
+	
+	// *** ROW 3 ***
+	a.a31 =  l.a31 * r.a11 + l.a32 * r.a21 + l.a33 * r.a31;  
+	a.a32 =  l.a31 * r.a12 + l.a32 * r.a22 + l.a33 * r.a32;
+	a.a33 =  l.a31 * r.a13 + l.a32 * r.a23 + l.a33 * r.a33;	
+
+	return a;
+}
+
+inline Quat Mul(Quat a, const float& b) // multiply: quat * float
 {
 	a.w *= b;
 	a.x *= b;
@@ -205,65 +162,12 @@ inline Quat operator*=(Quat& a, float b) // multiply: quat * float
 	return a;
 }
 
-inline Quat operator*(Quat a, float b) // multiply: quat * float
+inline Quat Mul(const float& b, const Quat& a) // multiply: float * quat
 {
-	return a *= b;
+	return Mul(a, b);
 }
 
-inline Quat operator*(float b, Quat a) // multiply: float * quat
-{
-	return a *= b;
-}
-
-inline Quat & Quat::operator+=(const Quat& b)
-{
-	Quat& a = *this;
-	a.w += b.w;
-	a.x += b.x;
-	a.y += b.y;
-	a.z += b.z;
-	return *this;
-}
-
-inline Quat & Quat::operator+(const Quat& b) const
-{
-	Quat a = *this;
-	a += b;
-	return a;
-}
-
-
-inline Vec3 & Vec3::operator+=(const Vec3& b)
-{
-	Vec3& a = *this;
-	a.x += b.x;
-	a.y += b.y;
-	a.z += b.z;
-	return *this;
-}
-
-inline Vec3 & Vec3::operator+(const Vec3& b) const
-{
-	Vec3 a = *this;
-	return a += b;
-}
-
-inline Vec3 & Vec3::operator-=(const Vec3& b)
-{
-	Vec3& a = *this;
-	a.x -= b.x;
-	a.y -= b.y;
-	a.z -= b.z;
-	return *this;
-}
-
-inline Vec3 & Vec3::operator-(const Vec3& b) const
-{
-	Vec3 a = *this;
-	return a -= b;
-}
-
-inline Vec3 operator*=(Vec3& a, const float& b) // multiply: vec3 * float
+inline Vec3 Mul(Vec3 a, const float& b) // multiply: vec3 * float
 {
 	a.x *= b;
 	a.y *= b;
@@ -271,33 +175,66 @@ inline Vec3 operator*=(Vec3& a, const float& b) // multiply: vec3 * float
 	return a;
 }
 
-inline Vec3 operator*(Vec3 a, const float& b) // multiply: vec3 * float
+inline Vec3 Mul(const float& b, const Vec3& a) // multiply: float * vec3
 {
-	return a *= b;
+	return Mul(a, b);
 }
 
-inline Vec3 operator*(const float& b, Vec3 a) // multiply: float * vec3
+inline Quat Sum(Quat a, const Quat& b)
 {
-	return a *= b;
+	a.w += b.w;
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
 }
 
 
-inline Vec3 Vec3::operator*(const Vec3& R) const // cross product of 3d vectors
+inline Vec3 Sum(Vec3 a, const Vec3& b)
+{
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+inline Vec3 Sub(Vec3 a, const Vec3& b)
+{
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+inline Vec3 CrossProd(const Vec3& L, const Vec3& R) // cross product of 3D vectors 
 { 
-    Vec3 L = *this;
-	Vec3 a(	L.y * R.z - L.z * R.y,
-			L.z * R.x - L.x * R.z,
-			L.x * R.y - L.y * R.x);
-    return a;
+	Vec3 a;
+	a.x = L.y * R.z - L.z * R.y;
+	a.y = L.z * R.x - L.x * R.z;
+	a.z = L.x * R.y - L.y * R.x;
+	return a;	// 76us
 }
 
-inline Vec3 Vector(const float& x, const float& y, const float& z)
+inline float DotProd(const Quat& L, const Quat& R)
 {
-	Vec3 v(x, y, z);
-	return v;
+	return L.w * R.w + L.x * R.x + L.y * R.y + L.z * R.z;
 }
 
-inline Quat conj(Quat a)
+inline float DotProd(const Vec3& L, const Vec3& R)
+{
+	return L.x * R.x + L.y * R.y + L.z * R.z;
+}
+
+inline Vec3 Vector(const float& x, const float& y, const float& z) // 3x float to vector
+{ 
+	Vec3 a;
+	a.x = x;
+	a.y = y;
+	a.z = z;
+	return a;
+}
+
+inline Quat Conj(Quat a)
 {
 	//a.w = a.w;
 	a.x = -a.x;
@@ -306,23 +243,23 @@ inline Quat conj(Quat a)
 	return a;
 }
 
-inline Quat Vector2Quat(const Vec3& a)	// Vec3 to Quat
+inline Quat Vector2Quat(const Vec3& a)	// [0,Vec3] to Quat
 {
-    Quat b;
-    b.w = 0.0f;
-    b.x = a.x;
-    b.y = a.y;
-    b.z = a.z;
-    return(b);
+	Quat b;
+	b.w = 0.0f;
+	b.x = a.x;
+	b.y = a.y;
+	b.z = a.z;
+	return b;
 }
 
 inline Vec3 Quat2Vector(const Quat& a)	// Quat to Vec3
 {
 	Vec3 b;
-    b.x = a.x;
-    b.y = a.y;
-    b.z = a.z;
-    return(b);
+	b.x = a.x;
+	b.y = a.y;
+	b.z = a.z;
+	return b;
 }
 
 
@@ -330,15 +267,15 @@ inline Vec3 Quat2Vector(const Quat& a)	// Quat to Vec3
 //		COMPOUND OPERATIONS
 // =========================
 
-inline float InvSqrt (float x)	// the "Quake" inverse square root -- 
+inline float InvSqrt(const float& x)	// borrowed from MultiWii v2.4
 { 
 	union{  
 		int32_t i;  
-		float    f; 
+		float   f; 
 	} conv; 
 	conv.f = x; 
-	conv.i = 0x5f3759df - (conv.i >> 1); 
-	return 0.5f * conv.f * (3.0f - x * conv.f * conv.f); //
+	conv.i = 0x5f1ffff9 - (conv.i >> 1); 
+	return conv.f * (1.68191409f - 0.703952253f * x * conv.f * conv.f);
 }
 
 inline float Magnitude(const Quat& a)
@@ -353,12 +290,12 @@ inline float Magnitude(const Vec3& a)
 
 inline Vec3 Normalize(const Vec3& a)
 {
-	return a * InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z);
+	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-inline Quat Normalize(const Quat& a)
+inline Quat Normalize(const Quat& a)  // 108us
 {
-	return a * InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w);
+	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
 }
 
 
@@ -369,43 +306,51 @@ inline Quat Normalize(const Quat& a)
 
 inline Vec3 Rotate(const M3x3& L, const Vec3& R) // vector rotated by matrix (V^ = Matrix * V -- 148us)
 { 
-	Vec3 a(	L.a11 * R.x + L.a12 * R.y + L.a13 * R.z,
-			L.a21 * R.x + L.a22 * R.y + L.a23 * R.z,
-			L.a31 * R.x + L.a32 * R.y + L.a33 * R.z);
-    return a;
+	Vec3 a;
+	a.x = L.a11 * R.x + L.a12 * R.y + L.a13 * R.z;
+	a.y = L.a21 * R.x + L.a22 * R.y + L.a23 * R.z;
+	a.z = L.a31 * R.x + L.a32 * R.y + L.a33 * R.z;
+	return a;
 }
 
 inline Vec3 Rotate(const Vec3& L, const M3x3& R) // vector rotated by matrix (V^ = V * Matrix -- 148us)
 { 
-	Vec3 a(	R.a11 * L.x + R.a21 * L.y + R.a31 * L.z,
-			R.a12 * L.x + R.a22 * L.y + R.a32 * L.z,
-			R.a13 * L.x + R.a23 * L.y + R.a33 * L.z);
-    return a;
+	Vec3 a;
+	a.x = R.a11 * L.x + R.a21 * L.y + R.a31 * L.z;
+	a.y = R.a12 * L.x + R.a22 * L.y + R.a32 * L.z;
+	a.z = R.a13 * L.x + R.a23 * L.y + R.a33 * L.z;
+	return a;
 }
+
 
 inline Vec3 Rotate(const Vec3& v, const Quat& q)	// Vector rotated by a Quaternion (matches V^ = V * Matrix)
 {	
-	Vec3 r(-q.x, -q.y, -q.z);								// v + 2*r X (r X V + q.w*v)
-	return v + (r + r) * (r * v + v * q.w);					// 15mult + 12add -- 268us
+	// v + 2*r X (r X v + q.w*v) -- https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
+	Vec3 r;		// vector r is the three imaginary coefficients of quaternion q -- future test: make static to increase speed
+	r.x = -q.x;	// reverse signs to change direction of rotation
+	r.y = -q.y;
+	r.z = -q.z;
+	return Sum(v, CrossProd(Sum(r, r), Sum(CrossProd(r, v), Mul(q.w, v)))); // 296us 
 	
-	//v = Quat2Vector((q * v) * conj(q));					// 460us
-	//return v;
+	//return Quat2Vector(Mul(Mul(q, v), Conj(q)));		// 460us 
 }
 
 inline Vec3 Rotate(const Quat& q, const Vec3& v)	// Vector rotated by a Quaternion (matches V^ = Matrix * V)
 {	
-	Vec3 r(q.x, q.y, q.z);								// v + 2*r X (r X V + q.w*v)
-	return v + ((r + r) * ((r * v) + (v * q.w)));				// 15mult + 12add -- 268us
-	
-	//v = Quat2Vector((conj(q) * v) * q);					// 460us
-	//return v;
+	Vec3 r; // v + 2*r X (r X v + q.w*v) -- https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
+	r.x = q.x;
+	r.y = q.y;
+	r.z = q.z;
+	return Sum(v, CrossProd(Sum(r, r), Sum(CrossProd(r, v), Mul(q.w, v))));	// 296us	
+
+	//return Quat2Vector(Mul(Mul(Conj(q), v), q));		// 460us
 }
 
 
-inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel vector[rad/s], time interval[us])
+inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel vector[rad/s], time interval[us]) -- Small angle approximation
 {  
-	float static dT_2;
-	Quat  static a;
+	float dT_2;
+	Quat  a;	
 	
 	dT_2 = float(t) * 0.0000005f; // time in seconds & divided in half for theta/2 computations
 	a.x  = w.x * dT_2;
@@ -418,10 +363,9 @@ inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel ve
 
 inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Quaternion
 {  
-	
 	float vMag = Magnitude(w);
-	float theta_2 = vMag * 0.5f;	// rotation angle divided by 2
-	float Sin_Mag = sin(theta_2) / vMag;			// computation minimization
+	float theta_2 = vMag * 0.5f;				// rotation angle divided by 2
+	float Sin_Mag = sin(theta_2) / vMag;	// computation minimization
 	
 	Quat a;
 	a.x = w.x * Sin_Mag;
@@ -431,13 +375,14 @@ inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Qu
 	return a;		// time = 390us + mult  = 636
 }
 
-inline void Quat2Matrix(const Quat& q, M3x3& m)
+
+inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 {
-	float static ww, xx,  yy,  zz;
-	float static w2, wx2, wy2, wz2;
-	float static x2, xy2, xz2, yz2;
+	float ww, xx,  yy,  zz;
+	float w2, wx2, wy2, wz2;
+	float x2, xy2, xz2, yz2;
 	
-	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us)
+	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
 	ww  = q.w * q.w;
 	xx  = q.x * q.x;
 	yy  = q.y * q.y;
@@ -468,7 +413,6 @@ inline void Quat2Matrix(const Quat& q, M3x3& m)
 	m.a12 = xy2 - wz2;
 	m.a13 = xz2 + wy2;
 	m.a23 = yz2 - wx2;
-
 }
 
 
@@ -479,35 +423,34 @@ inline void Quat2Matrix(const Quat& q, M3x3& m)
 void display(const Vec3& v)
 {
 	Serial.print("X: ");
-	Serial.print(v.x, 3);
+	Serial.print(v.x, 4);
 	Serial.print("   ");
 	
 	Serial.print("Y: ");
-	Serial.print(v.y, 3);
+	Serial.print(v.y, 4);
 	Serial.print("   ");
 	
 	Serial.print("Z: ");
-	Serial.println(v.z, 3);
-
+	Serial.println(v.z, 4);
 }
 
 void display(const Quat& q)
 {
-	Serial.print("W: ");
-	Serial.print(q.w, 3);
-	Serial.print("   ");
 	
 	Serial.print("X: ");
-	Serial.print(q.x, 3);
+	Serial.print(q.x, 4);
 	Serial.print("   ");
 	
 	Serial.print("Y: ");
-	Serial.print(q.y, 3);
+	Serial.print(q.y, 4);
 	Serial.print("   ");
 	
 	Serial.print("Z: ");
-	Serial.println(q.z, 3);
-
+	Serial.print(q.z, 4);
+	Serial.print("   ");
+	
+	Serial.print("W: ");
+	Serial.println(q.w, 4);
 }
 
 void display(const M3x3& m)
