@@ -131,9 +131,9 @@ inline Quat Mul(const Quat& lhs, const Vec3& rhs)  // multiply: Quat * [0,vec3] 
 	return a;
 }
 
-inline Q3x3 Mul(const Q3x3& l, const Q3x3& r)  // multiply: Q3x3 * Q3x3 --27mult, 18 add
+inline M3x3 Mul(const M3x3& l, const M3x3& r)  // multiply: Q3x3 * Q3x3 --27mult, 18 add
 {
-	Q3x3 a;
+	M3x3 a;
 	
 	// *** ROW 1 ***
 	a.a11 =  l.a11 * r.a11 + l.a12 * r.a21 + l.a13 * r.a31;  
@@ -413,6 +413,24 @@ inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 	m.a12 = xy2 - wz2;
 	m.a13 = xz2 + wy2;
 	m.a23 = yz2 - wx2;
+}
+
+
+{
+	Vec3 ypr;
+	return ypr;
+}
+
+
+Vec3 RollPitchYaw(const Quat& q)
+{
+	Vec3 ypr;
+	/*
+	ypr.x = atan2(xx,xx);
+	ypr.y = acos(xxxx);
+	ypr.z = atan2(xx,xx);
+	*/
+	return ypr;
 }
 
 
