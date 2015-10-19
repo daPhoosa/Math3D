@@ -278,6 +278,11 @@ inline float InvSqrt(const float& x)	// borrowed from MultiWii v2.4
 	return conv.f * (1.68191409f - 0.703952253f * x * conv.f * conv.f);
 }
 
+inline float InvSqrtFast(const float& x)	// use when very near 1.0
+{ 
+	return (3.0f - x) * 0.5f;
+}
+
 inline float Magnitude(const Quat& a)
 {
 	return sqrt(a.w*a.w + a.x*a.x + a.y*a.y + a.z*a.z);
@@ -290,14 +295,23 @@ inline float Magnitude(const Vec3& a)
 
 inline Vec3 Normalize(const Vec3& a)
 {
-	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z));
+	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z));
+}
+
+inline Vec3 NormalizeFast(const Vec3& a)
+{
+	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
 inline Quat Normalize(const Quat& a)  // 108us
 {
-	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
 }
 
+inline Quat NormalizeFast(const Quat& a)  // 
+{
+	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+}
 
 
 // =========================
@@ -378,26 +392,22 @@ inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Qu
 
 inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 {
-	float ww, xx,  yy,  zz;
-	float w2, wx2, wy2, wz2;
-	float x2, xy2, xz2, yz2;
-	
 	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
-	ww  = q.w * q.w;
-	xx  = q.x * q.x;
-	yy  = q.y * q.y;
-	zz  = q.z * q.z;
+	float ww  = q.w * q.w;
+	float xx  = q.x * q.x;
+	float yy  = q.y * q.y;
+	float zz  = q.z * q.z;
 
-	w2  = q.w + q.w;
-	wx2 =  w2 * q.x;
-	wy2 =  w2 * q.y;
-	wz2 =  w2 * q.z;
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x;
+	float wy2 =  w2 * q.y;
+	float wz2 =  w2 * q.z;
 
-	x2  = q.x + q.x;
-	xy2 =  x2 * q.y;
-	xz2 =  x2 * q.z;
+	float x2  = q.x + q.x;
+	float xy2 =  x2 * q.y;
+	float xz2 =  x2 * q.z;
 
-	yz2 = (q.y + q.y) * q.z;
+	float yz2 = (q.y + q.y) * q.z;
 
 	// Diagonal
 	m.a11 = ww + xx - yy - zz;
@@ -416,8 +426,14 @@ inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 }
 
 
+Vec3 YawPitchRoll(const Quat& q) // Tait-Bryan Angles - 610us
 {
 	Vec3 ypr;
+
+	ypr.z = atan2((q.y * q.z + q.w * q.x), 0.5f - (q.x * q.x + q.y * q.y));	// YAW
+	ypr.y = asin(-2 * (q.x * q.z - q.w * q.y));								// PITCH
+	ypr.x = atan2((q.x * q.y + q.w * q.z), 0.5f - (q.y * q.y + q.z * q.z));	// ROLL
+
 	return ypr;
 }
 
