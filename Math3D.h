@@ -303,12 +303,13 @@ inline Vec3 NormalizeFast(const Vec3& a)
 	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-inline Quat Normalize(const Quat& a)  // 108us
+inline Quat Normalize(const Quat& a)  // 148us
 {
 	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+	//return Mul(a, 1.0f / sqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));  // 164us
 }
 
-inline Quat NormalizeFast(const Quat& a)  // 
+inline Quat NormalizeFast(const Quat& a)  // 120us
 {
 	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
 }
@@ -377,15 +378,17 @@ inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel ve
 
 inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Quaternion
 {  
+	Quat a;
+	
 	float vMag = Magnitude(w);
-	float theta_2 = vMag * 0.5f;				// rotation angle divided by 2
+	float theta_2 = vMag * 0.5f;			// rotation angle divided by 2
 	float Sin_Mag = sin(theta_2) / vMag;	// computation minimization
 	
-	Quat a;
 	a.x = w.x * Sin_Mag;
  	a.y = w.y * Sin_Mag;
 	a.z = w.z * Sin_Mag;
 	a.w = cos(theta_2);
+	
 	return a;		// time = 390us + mult  = 636
 }
 
@@ -426,6 +429,61 @@ inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 }
 
 
+inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==> 
+{
+	Vec3 a;
+
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x; //
+	float wy2 =  w2 * q.y; //
+
+	float xz2 = (q.x + q.x) * q.z; //
+
+	float yz2 = (q.y + q.y) * q.z; //
+
+	a.x = xz2 + wy2;
+	a.y = yz2 - wx2;
+
+	return a;
+	
+	/*
+	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
+	float ww  = q.w * q.w;
+	float xx  = q.x * q.x;
+	float yy  = q.y * q.y;
+	float zz  = q.z * q.z;
+
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x;
+	float wy2 =  w2 * q.y;
+	float wz2 =  w2 * q.z;
+
+	float x2  = q.x + q.x;
+	float xy2 =  x2 * q.y;
+	float xz2 =  x2 * q.z;
+
+	float yz2 = (q.y + q.y) * q.z;
+
+	// Diagonal
+	m.a11 = ww + xx - yy - zz;
+	m.a22 = ww - xx + yy - zz;
+	m.a33 = ww - xx - yy + zz;
+
+	// Lower Left
+	m.a21 = xy2 + wz2;
+	m.a31 = xz2 - wy2;
+	m.a32 = yz2 + wx2;
+
+	// Upper Right
+	m.a12 = xy2 - wz2;
+	m.a13 = xz2 + wy2;
+	m.a23 = yz2 - wx2;
+	*/
+	
+	
+}
+
+
 Vec3 YawPitchRoll(const Quat& q) // Tait-Bryan Angles - 610us
 {
 	Vec3 ypr;
@@ -456,65 +514,100 @@ Vec3 RollPitchYaw(const Quat& q)
 
 void display(const Vec3& v)
 {
-	Serial.print("X: ");
-	Serial.print(v.x, 4);
-	Serial.print("   ");
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = "X: ";
+		outputBuffer += String(v.x, 4);
+		outputBuffer += "   Y: ";
+		outputBuffer += String(v.y, 4);
+		outputBuffer += "   Z: ";
+		outputBuffer += String(v.z, 4);
+		outputBuffer += '\n';
 	
-	Serial.print("Y: ");
-	Serial.print(v.y, 4);
-	Serial.print("   ");
-	
-	Serial.print("Z: ");
-	Serial.println(v.z, 4);
+		SERIAL_PORT.print(outputBuffer);
+	#endif 		
 }
 
 void display(const Quat& q)
 {
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = "X: ";
+		outputBuffer += String(q.x, 4);
+		outputBuffer += "  Y: ";
+		outputBuffer += String(q.y, 4);
+		outputBuffer += "  Z: ";
+		outputBuffer += String(q.z, 4);
+		outputBuffer += "  W: ";
+		outputBuffer += String(q.w, 4);
+		outputBuffer += '\n';
 	
-	Serial.print("X: ");
-	Serial.print(q.x, 4);
-	Serial.print("   ");
-	
-	Serial.print("Y: ");
-	Serial.print(q.y, 4);
-	Serial.print("   ");
-	
-	Serial.print("Z: ");
-	Serial.print(q.z, 4);
-	Serial.print("   ");
-	
-	Serial.print("W: ");
-	Serial.println(q.w, 4);
+		SERIAL_PORT.print(outputBuffer);
+	#endif 		
 }
 
 void display(const M3x3& m)
 {
-	Serial.print("   ");
-	Serial.print(m.a11, 3);
-	Serial.print("   ");
-	
-	Serial.print(m.a12, 3);
-	Serial.print("   ");
-	
-	Serial.println(m.a13, 3);
-	
-	Serial.print("   ");
-	Serial.print(m.a21, 3);
-	Serial.print("   ");
-	
-	Serial.print(m.a22, 3);
-	Serial.print("   ");
-	
-	Serial.println(m.a23, 3);
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = String(m.a11, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a12, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a13, 3);
+		outputBuffer += '\n';
+		
+		outputBuffer += String(m.a21, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a22, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a23, 3);
+		outputBuffer += '\n';
 
-	Serial.print("   ");
-	Serial.print(m.a31, 3);
-	Serial.print("   ");
+		outputBuffer += String(m.a31, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a32, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a33, 3);
+		outputBuffer += '\n';
 	
-	Serial.print(m.a32, 3);
-	Serial.print("   ");
+		SERIAL_PORT.print(outputBuffer);
+	#endif 	
 	
-	Serial.println(m.a33, 3);	
+	
+	/*
+	#ifdef SERIAL_PORT
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a11, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a12, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a13, 3);
+		
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a21, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a22, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a23, 3);
+
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a31, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a32, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a33, 3);	
+	#endif 
+	*/
 }
 
 #endif 
