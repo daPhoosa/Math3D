@@ -548,12 +548,12 @@ inline float RPY_Roll(const Quat& q)
 
 inline float RPY_Pitch(const Quat& q)
 {
-	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Pitch
+	return asin(2.0f * (q.w * q.y - q.z * q.x));	// Pitch
 }
 
 inline float RPY_Yaw(const Quat& q)
 {
-	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Yaw
+	return atan2fast2(q.w * q.z + q.x * q.y,  0.5f - (q.y * q.y  + q.z * q.z));	// Yaw
 }
 
 Vec3 RollPitchYaw(const Quat& q)
