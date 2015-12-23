@@ -484,26 +484,86 @@ inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==>
 }
 
 
-Vec3 YawPitchRoll(const Quat& q) // Tait-Bryan Angles - 610us
+// FAST ATAN2 Approximationf from: https://gist.github.com/volkansalma/2972237
+// |error| < 0.005
+float atan2fast( float y, float x )
+{
+	if ( x == 0.0f )
+	{
+		if ( y > 0.0f ) return 1.5707963f;
+		if ( y == 0.0f ) return 0.0f;
+		return -1.5707963f;
+	}
+	float atan;
+	float z = y/x;
+	if ( fabs( z ) < 1.0f )
+	{
+		atan = z/(1.0f + 0.28f*z*z);
+		if ( x < 0.0f )
+		{
+			if ( y < 0.0f ) return atan - 3.14159265f;
+			return atan + 3.14159265f;
+		}
+	}
+	else
+	{
+		atan = 1.5707963f - z/(z*z + 0.28f);
+		if ( y < 0.0f ) return atan - 3.14159265f;
+	}
+	return atan;
+}
+
+////// YAW -> PITCH -> ROLL = YPR -- Rotation Order
+inline float YPR_Yaw(const Quat& q)
+{
+	return atan2fast(q.y * q.z + q.w * q.x, 0.5f - (q.x * q.x + q.y * q.y));	// Yaw
+}
+
+inline float YPR_Pitch(const Quat& q)
+{
+	return asin(2.0f * (q.x * q.z - q.w * q.y));;	// Pitch
+}
+
+inline float YPR_Roll(const Quat& q)
+{
+	return atan2fast(q.x * q.y + q.w * q.z, 0.5f - (q.y * q.y + q.z * q.z));	// Roll
+}
+
+Vec3 YawPitchRoll(const Quat& q) // Tait-Bryan Angles - 440us
 {
 	Vec3 ypr;
-
-	ypr.z = atan2((q.y * q.z + q.w * q.x), 0.5f - (q.x * q.x + q.y * q.y));	// YAW
-	ypr.y = asin(-2 * (q.x * q.z - q.w * q.y));								// PITCH
-	ypr.x = atan2((q.x * q.y + q.w * q.z), 0.5f - (q.y * q.y + q.z * q.z));	// ROLL
+	
+	ypr.z = YPR_Yaw(q);		// YAW
+	ypr.y = YPR_Pitch(q);	// PITCH
+	ypr.x = YPR_Roll(q);	// ROLL
 
 	return ypr;
 }
 
+////// ROLL -> PITCH -> YAW = RPY -- Rotation Order
+inline float RPY_Roll(const Quat& q)
+{
+	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Roll
+}
+
+inline float RPY_Pitch(const Quat& q)
+{
+	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Pitch
+}
+
+inline float RPY_Yaw(const Quat& q)
+{
+	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Yaw
+}
 
 Vec3 RollPitchYaw(const Quat& q)
 {
 	Vec3 ypr;
-	/*
-	ypr.x = atan2(xx,xx);
-	ypr.y = acos(xxxx);
-	ypr.z = atan2(xx,xx);
-	*/
+
+	ypr.x = RPY_Roll(q);	// Roll
+	ypr.y = RPY_Pitch(q);	// Pitch
+	ypr.z = RPY_Yaw(q);		// Yaw
+	
 	return ypr;
 }
 
