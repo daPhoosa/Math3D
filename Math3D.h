@@ -278,6 +278,11 @@ inline float InvSqrt(const float& x)	// borrowed from MultiWii v2.4
 	return conv.f * (1.68191409f - 0.703952253f * x * conv.f * conv.f);
 }
 
+inline float InvSqrtFast(const float& x)	// use when very near 1.0
+{ 
+	return (3.0f - x) * 0.5f;
+}
+
 inline float Magnitude(const Quat& a)
 {
 	return sqrt(a.w*a.w + a.x*a.x + a.y*a.y + a.z*a.z);
@@ -290,14 +295,24 @@ inline float Magnitude(const Vec3& a)
 
 inline Vec3 Normalize(const Vec3& a)
 {
-	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z));
+	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-inline Quat Normalize(const Quat& a)  // 108us
+inline Vec3 NormalizeFast(const Vec3& a)
 {
-	return Mul(a, InvSqrt (a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
+inline Quat Normalize(const Quat& a)  // 148us
+{
+	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+	//return Mul(a, 1.0f / sqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));  // 164us
+}
+
+inline Quat NormalizeFast(const Quat& a)  // 120us
+{
+	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+}
 
 
 // =========================
@@ -363,41 +378,39 @@ inline Quat Quaternion(const Vec3& w, const unsigned long& t)	// (angular vel ve
 
 inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Quaternion
 {  
+	Quat a;
+	
 	float vMag = Magnitude(w);
-	float theta_2 = vMag * 0.5f;				// rotation angle divided by 2
+	float theta_2 = vMag * 0.5f;			// rotation angle divided by 2
 	float Sin_Mag = sin(theta_2) / vMag;	// computation minimization
 	
-	Quat a;
 	a.x = w.x * Sin_Mag;
  	a.y = w.y * Sin_Mag;
 	a.z = w.z * Sin_Mag;
 	a.w = cos(theta_2);
+	
 	return a;		// time = 390us + mult  = 636
 }
 
 
 inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 {
-	float ww, xx,  yy,  zz;
-	float w2, wx2, wy2, wz2;
-	float x2, xy2, xz2, yz2;
-	
 	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
-	ww  = q.w * q.w;
-	xx  = q.x * q.x;
-	yy  = q.y * q.y;
-	zz  = q.z * q.z;
+	float ww  = q.w * q.w;
+	float xx  = q.x * q.x;
+	float yy  = q.y * q.y;
+	float zz  = q.z * q.z;
 
-	w2  = q.w + q.w;
-	wx2 =  w2 * q.x;
-	wy2 =  w2 * q.y;
-	wz2 =  w2 * q.z;
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x;
+	float wy2 =  w2 * q.y;
+	float wz2 =  w2 * q.z;
 
-	x2  = q.x + q.x;
-	xy2 =  x2 * q.y;
-	xz2 =  x2 * q.z;
+	float x2  = q.x + q.x;
+	float xy2 =  x2 * q.y;
+	float xz2 =  x2 * q.z;
 
-	yz2 = (q.y + q.y) * q.z;
+	float yz2 = (q.y + q.y) * q.z;
 
 	// Diagonal
 	m.a11 = ww + xx - yy - zz;
@@ -416,20 +429,141 @@ inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 }
 
 
+inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==> 
+{
+	Vec3 a;
+
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x; //
+	float wy2 =  w2 * q.y; //
+
+	float xz2 = (q.x + q.x) * q.z; //
+
+	float yz2 = (q.y + q.y) * q.z; //
+
+	a.x = xz2 + wy2;
+	a.y = yz2 - wx2;
+
+	return a;
+	
+	/*
+	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
+	float ww  = q.w * q.w;
+	float xx  = q.x * q.x;
+	float yy  = q.y * q.y;
+	float zz  = q.z * q.z;
+
+	float w2  = q.w + q.w;
+	float wx2 =  w2 * q.x;
+	float wy2 =  w2 * q.y;
+	float wz2 =  w2 * q.z;
+
+	float x2  = q.x + q.x;
+	float xy2 =  x2 * q.y;
+	float xz2 =  x2 * q.z;
+
+	float yz2 = (q.y + q.y) * q.z;
+
+	// Diagonal
+	m.a11 = ww + xx - yy - zz;
+	m.a22 = ww - xx + yy - zz;
+	m.a33 = ww - xx - yy + zz;
+
+	// Lower Left
+	m.a21 = xy2 + wz2;
+	m.a31 = xz2 - wy2;
+	m.a32 = yz2 + wx2;
+
+	// Upper Right
+	m.a12 = xy2 - wz2;
+	m.a13 = xz2 + wy2;
+	m.a23 = yz2 - wx2;
+	*/
+	
+	
+}
+
+
+// FAST ATAN2 Approximationf from: https://gist.github.com/volkansalma/2972237
+// |error| < 0.005
+float atan2fast( float y, float x )
+{
+	if ( x == 0.0f )
+	{
+		if ( y > 0.0f ) return 1.5707963f;
+		if ( y == 0.0f ) return 0.0f;
+		return -1.5707963f;
+	}
+	float atan;
+	float z = y/x;
+	if ( fabs( z ) < 1.0f )
+	{
+		atan = z/(1.0f + 0.28f*z*z);
+		if ( x < 0.0f )
+		{
+			if ( y < 0.0f ) return atan - 3.14159265f;
+			return atan + 3.14159265f;
+		}
+	}
+	else
+	{
+		atan = 1.5707963f - z/(z*z + 0.28f);
+		if ( y < 0.0f ) return atan - 3.14159265f;
+	}
+	return atan;
+}
+
+////// YAW -> PITCH -> ROLL = YPR -- Rotation Order
+inline float YPR_Yaw(const Quat& q)
+{
+	return atan2fast(q.y * q.z + q.w * q.x, 0.5f - (q.x * q.x + q.y * q.y));	// Yaw
+}
+
+inline float YPR_Pitch(const Quat& q)
+{
+	return asin(2.0f * (q.x * q.z - q.w * q.y));;	// Pitch
+}
+
+inline float YPR_Roll(const Quat& q)
+{
+	return atan2fast(q.x * q.y + q.w * q.z, 0.5f - (q.y * q.y + q.z * q.z));	// Roll
+}
+
+Vec3 YawPitchRoll(const Quat& q) // Tait-Bryan Angles - 440us
 {
 	Vec3 ypr;
+	
+	ypr.z = YPR_Yaw(q);		// YAW
+	ypr.y = YPR_Pitch(q);	// PITCH
+	ypr.x = YPR_Roll(q);	// ROLL
+
 	return ypr;
 }
 
+////// ROLL -> PITCH -> YAW = RPY -- Rotation Order
+inline float RPY_Roll(const Quat& q)
+{
+	return atan2fast(q.w * q.x + q.y * q.z,  0.5f - (q.x * q.x + q.y * q.y));	// Roll
+}
+
+inline float RPY_Pitch(const Quat& q)
+{
+	return asin(2.0f * (q.w * q.y - q.z * q.x));	// Pitch
+}
+
+inline float RPY_Yaw(const Quat& q)
+{
+	return atan2fast2(q.w * q.z + q.x * q.y,  0.5f - (q.y * q.y  + q.z * q.z));	// Yaw
+}
 
 Vec3 RollPitchYaw(const Quat& q)
 {
 	Vec3 ypr;
-	/*
-	ypr.x = atan2(xx,xx);
-	ypr.y = acos(xxxx);
-	ypr.z = atan2(xx,xx);
-	*/
+
+	ypr.x = RPY_Roll(q);	// Roll
+	ypr.y = RPY_Pitch(q);	// Pitch
+	ypr.z = RPY_Yaw(q);		// Yaw
+	
 	return ypr;
 }
 
@@ -440,65 +574,100 @@ Vec3 RollPitchYaw(const Quat& q)
 
 void display(const Vec3& v)
 {
-	Serial.print("X: ");
-	Serial.print(v.x, 4);
-	Serial.print("   ");
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = "X: ";
+		outputBuffer += String(v.x, 4);
+		outputBuffer += "   Y: ";
+		outputBuffer += String(v.y, 4);
+		outputBuffer += "   Z: ";
+		outputBuffer += String(v.z, 4);
+		outputBuffer += '\n';
 	
-	Serial.print("Y: ");
-	Serial.print(v.y, 4);
-	Serial.print("   ");
-	
-	Serial.print("Z: ");
-	Serial.println(v.z, 4);
+		SERIAL_PORT.print(outputBuffer);
+	#endif 		
 }
 
 void display(const Quat& q)
 {
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = "X: ";
+		outputBuffer += String(q.x, 4);
+		outputBuffer += "  Y: ";
+		outputBuffer += String(q.y, 4);
+		outputBuffer += "  Z: ";
+		outputBuffer += String(q.z, 4);
+		outputBuffer += "  W: ";
+		outputBuffer += String(q.w, 4);
+		outputBuffer += '\n';
 	
-	Serial.print("X: ");
-	Serial.print(q.x, 4);
-	Serial.print("   ");
-	
-	Serial.print("Y: ");
-	Serial.print(q.y, 4);
-	Serial.print("   ");
-	
-	Serial.print("Z: ");
-	Serial.print(q.z, 4);
-	Serial.print("   ");
-	
-	Serial.print("W: ");
-	Serial.println(q.w, 4);
+		SERIAL_PORT.print(outputBuffer);
+	#endif 		
 }
 
 void display(const M3x3& m)
 {
-	Serial.print("   ");
-	Serial.print(m.a11, 3);
-	Serial.print("   ");
-	
-	Serial.print(m.a12, 3);
-	Serial.print("   ");
-	
-	Serial.println(m.a13, 3);
-	
-	Serial.print("   ");
-	Serial.print(m.a21, 3);
-	Serial.print("   ");
-	
-	Serial.print(m.a22, 3);
-	Serial.print("   ");
-	
-	Serial.println(m.a23, 3);
+	#ifdef SERIAL_PORT
+		String outputBuffer;
+		
+		outputBuffer  = String(m.a11, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a12, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a13, 3);
+		outputBuffer += '\n';
+		
+		outputBuffer += String(m.a21, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a22, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a23, 3);
+		outputBuffer += '\n';
 
-	Serial.print("   ");
-	Serial.print(m.a31, 3);
-	Serial.print("   ");
+		outputBuffer += String(m.a31, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a32, 3);
+		outputBuffer += " ";
+		outputBuffer += String(m.a33, 3);
+		outputBuffer += '\n';
 	
-	Serial.print(m.a32, 3);
-	Serial.print("   ");
+		SERIAL_PORT.print(outputBuffer);
+	#endif 	
 	
-	Serial.println(m.a33, 3);	
+	
+	/*
+	#ifdef SERIAL_PORT
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a11, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a12, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a13, 3);
+		
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a21, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a22, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a23, 3);
+
+		SERIAL_PORT.print("   ");
+		SERIAL_PORT.print(m.a31, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.print(m.a32, 3);
+		SERIAL_PORT.print("   ");
+		
+		SERIAL_PORT.println(m.a33, 3);	
+	#endif 
+	*/
 }
 
 #endif 
