@@ -441,8 +441,8 @@ inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==>
 
 	float yz2 = (q.y + q.y) * q.z; //
 
-	a.x = xz2 + wy2;
-	a.y = yz2 - wx2;
+	a.x = xz2 - wy2;
+	a.y = yz2 + wx2;
 
 	return a;
 	
@@ -553,7 +553,7 @@ inline float RPY_Pitch(const Quat& q)
 
 inline float RPY_Yaw(const Quat& q)
 {
-	return atan2fast2(q.w * q.z + q.x * q.y,  0.5f - (q.y * q.y  + q.z * q.z));	// Yaw
+	return atan2fast(q.w * q.z + q.x * q.y,  0.5f - (q.y * q.y  + q.z * q.z));	// Yaw
 }
 
 Vec3 RollPitchYaw(const Quat& q)
@@ -636,38 +636,6 @@ void display(const M3x3& m)
 	
 		SERIAL_PORT.print(outputBuffer);
 	#endif 	
-	
-	
-	/*
-	#ifdef SERIAL_PORT
-		SERIAL_PORT.print("   ");
-		SERIAL_PORT.print(m.a11, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.print(m.a12, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.println(m.a13, 3);
-		
-		SERIAL_PORT.print("   ");
-		SERIAL_PORT.print(m.a21, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.print(m.a22, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.println(m.a23, 3);
-
-		SERIAL_PORT.print("   ");
-		SERIAL_PORT.print(m.a31, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.print(m.a32, 3);
-		SERIAL_PORT.print("   ");
-		
-		SERIAL_PORT.println(m.a33, 3);	
-	#endif 
-	*/
 }
 
 #endif 
