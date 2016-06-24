@@ -21,7 +21,7 @@
 // =========================
 		Quat Mul( Quat, Quat )		// multiply: Quat * Quat --16 mult, 6 add, 6 sub  (266us)
 		Quat Mul( Quat, Vec3 )		// multiply: Quat * [0,vec3] --12mult, 3 add, 6 sub
-		Q3x3 Mul( Q3x3, Q3x3 )  	// multiply: Q3x3 * Q3x3
+		M3x3 Mul( M3x3, M3x3 )  	// multiply: M3x3 * M3x3
 		Quat Mul( Quat, float )		// multiply: Quat * float
 		Quat Mul( float, Quat )		// multiply: float * Quat
 		Vec3 Mul( Vec3, float )		// multiply: Vec3 * float
@@ -278,7 +278,7 @@ inline float InvSqrt(const float& x)	// borrowed from MultiWii v2.4
 	return conv.f * (1.68191409f - 0.703952253f * x * conv.f * conv.f);
 }
 
-inline float InvSqrtFast(const float& x)	// use when very near 1.0
+inline float InvSqrtFast(const float& x)	// use when already very near 1.0
 { 
 	return (3.0f - x) * 0.5f;
 }
@@ -303,9 +303,9 @@ inline Vec3 NormalizeFast(const Vec3& a)
 	return Mul(a, InvSqrtFast(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-inline Quat Normalize(const Quat& a)  // 148us
+inline Quat Normalize(const Quat& a)  
 {
-	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));
+	return Mul(a, InvSqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));	// 148us
 	//return Mul(a, 1.0f / sqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w));  // 164us
 }
 
@@ -341,7 +341,7 @@ inline Vec3 Rotate(const Vec3& L, const M3x3& R) // vector rotated by matrix (V^
 inline Vec3 Rotate(const Vec3& v, const Quat& q)	// Vector rotated by a Quaternion (matches V^ = V * Matrix)
 {	
 	// v + 2*r X (r X v + q.w*v) -- https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
-	Vec3 r;		// vector r is the three imaginary coefficients of quaternion q -- future test: make static to increase speed
+	Vec3 r;		// vector r is the three imaginary coefficients of quaternion q
 	r.x = -q.x;	// reverse signs to change direction of rotation
 	r.y = -q.y;
 	r.z = -q.z;
@@ -429,8 +429,10 @@ inline void Quat2Matrix(const Quat& q, M3x3& m) // Quaternion ==> Matrix
 }
 
 
-inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==> 
+inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==> vertical unit vector rotated from earth to body frame
 {
+	// Fast angle approximation for "small" pitch and roll values, use asin to find exact angle. 
+	// Based on Quat ==> M3x3 method
 	Vec3 a;
 
 	float w2  = q.w + q.w;
@@ -445,46 +447,11 @@ inline Vec3 VerticalInBody(const Quat& q) // Quaternion ==>
 	a.y = yz2 + wx2;
 
 	return a;
-	
-	/*
-	// pre-compute to reduce multiplies (10xMult, 18xAdd/Sub -- 248us total)
-	float ww  = q.w * q.w;
-	float xx  = q.x * q.x;
-	float yy  = q.y * q.y;
-	float zz  = q.z * q.z;
 
-	float w2  = q.w + q.w;
-	float wx2 =  w2 * q.x;
-	float wy2 =  w2 * q.y;
-	float wz2 =  w2 * q.z;
-
-	float x2  = q.x + q.x;
-	float xy2 =  x2 * q.y;
-	float xz2 =  x2 * q.z;
-
-	float yz2 = (q.y + q.y) * q.z;
-
-	// Diagonal
-	m.a11 = ww + xx - yy - zz;
-	m.a22 = ww - xx + yy - zz;
-	m.a33 = ww - xx - yy + zz;
-
-	// Lower Left
-	m.a21 = xy2 + wz2;
-	m.a31 = xz2 - wy2;
-	m.a32 = yz2 + wx2;
-
-	// Upper Right
-	m.a12 = xy2 - wz2;
-	m.a13 = xz2 + wy2;
-	m.a23 = yz2 - wx2;
-	*/
-	
-	
 }
 
 
-// FAST ATAN2 Approximationf from: https://gist.github.com/volkansalma/2972237
+// FAST ATAN2 Approximation from: https://gist.github.com/volkansalma/2972237
 // |error| < 0.005
 float atan2fast( float y, float x )
 {
@@ -566,6 +533,72 @@ Vec3 RollPitchYaw(const Quat& q)
 	
 	return ypr;
 }
+
+
+inline float veryFastSin(float x) // from: http://lab.polygonal.de/?p=205  (60us faster, ~0.05 error)
+{
+	float s;
+
+	//always wrap input angle to -PI..PI
+	if (x < -3.14159265) x += 6.28318531;
+	else
+	if (x >  3.14159265) x -= 6.28318531;
+
+	//compute sine
+	if (x < 0)
+		s = 1.27323954 * x + .405284735 * x * x;
+	else
+		s = 1.27323954 * x - 0.405284735 * x * x;
+
+	return s;
+}
+
+inline float veryFastCos(float x)
+{  
+  //compute cosine: sin(x + PI/2) = cos(x)
+  return veryFastSin(x + 1.57079632f);
+
+}
+
+inline float fastSin(float x) // from: http://lab.polygonal.de/?p=205  (24us faster, ~0.0004 error)
+{
+	float s;
+
+	//always wrap input angle to -PI..PI
+	if (x < -3.14159265f) x += 6.28318531f;
+	else
+	if (x >  3.14159265f) x -= 6.28318531f;
+
+	//compute sine
+	if (x < 0.0f)
+	{
+	    s = 1.27323954 * x + .405284735 * x * x;
+		
+		if (s < 0)
+			s = .225 * (s * -s - s) + s;
+		else
+			s = .225 * (s *  s - s) + s;
+	}
+	else
+	{
+		s = 1.27323954 * x - 0.405284735 * x * x;
+    
+		if (s < 0)
+			s = .225 * (s * -s - s) + s;
+		else
+			s = .225 * (s *  s - s) + s;
+	}
+	return s;
+
+}
+
+inline float fastCos(float x)
+{  
+  //compute cosine: sin(x + PI/2) = cos(x)
+  return fastSin(x + 1.57079632f);
+
+}
+
 
 
 // =========================
