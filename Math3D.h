@@ -381,6 +381,9 @@ inline Quat Quaternion(const Vec3& w)	// (angle vector[rad])	--Large Rotation Qu
 	Quat a;
 	
 	float vMag = Magnitude(w);
+	
+	if(vMag < 1.0e-6) return a;  // terminate early if magnitude is negligible (a is zero rotation quat 0,0,0,1)
+	
 	float theta_2 = vMag * 0.5f;			// rotation angle divided by 2
 	float Sin_Mag = sin(theta_2) / vMag;	// computation minimization
 	
