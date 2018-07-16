@@ -6,9 +6,9 @@
 # Datatypes (KEYWORD1)
 #######################################
 
-Math3D		KEYWORD1
-Quat		KEYWORD1
-Vec3		KEYWORD1
+Math3D	KEYWORD1
+Quat	KEYWORD1
+Vec3	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
